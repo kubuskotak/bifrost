@@ -32,7 +32,6 @@ type (
 	Https      bool
 	ServeOpts  struct {
 		Port     WebPort
-		Router   http.Handler
 		TimeOut  WebTimeOut
 		TLS      Https
 		CertFile string
@@ -41,6 +40,7 @@ type (
 )
 
 type Server struct {
+	errChan    chan error
 	httpServer *http.Server
 	Port       WebPort
 	TimeOut    WebTimeOut
@@ -61,7 +61,6 @@ func NewServerMux(opts ServeOpts) *Server {
 func (s *Server) Run(handler http.Handler) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	var err error
 	s.httpServer.Handler = handler
 	// Description µ micro service
 	fmt.Println(
@@ -70,15 +69,14 @@ func (s *Server) Run(handler http.Handler) error {
 			s.Port,
 		))
 	log.Info().Msgf("Now serving at %s", s.httpServer.Addr)
-	if s.TLS {
-		log.Info().Msg("Secure with HTTPS")
-		err = s.httpServer.ListenAndServeTLS(s.CertFile, s.KeyFile)
-	} else {
-		err = s.httpServer.ListenAndServe()
-	}
-	if err != nil {
-		return err
-	}
+	go func() {
+		if s.TLS {
+			log.Info().Msg("Secure with HTTPS")
+			s.errChan <- s.httpServer.ListenAndServeTLS(s.CertFile, s.KeyFile)
+		} else {
+			s.errChan <- s.httpServer.ListenAndServe()
+		}
+	}()
 	s.waitForSignals(ctx)
 	s.Stop()
 	return nil
@@ -106,13 +104,16 @@ func (s *Server) waitForSignals(ctx context.Context) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 	for {
-		interrupt := <-interrupt
-		if interrupt == os.Interrupt {
+		select {
+		case <-interrupt:
 			s.Quiet(ctx)
 			log.Error().Err(fmt.Errorf("interrupt received, shutting down")).Msg("Server interrupted through context")
-			continue
+			return
+		case err := <-s.errChan:
+			s.Quiet(ctx)
+			log.Error().Err(err)
+			return
 		}
-		break
 	}
 }
 

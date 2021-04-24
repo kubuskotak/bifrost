@@ -27,9 +27,8 @@ func TestNewServerGRPC(t *testing.T) {
 	}()
 
 	// Testing
-	serverErrChan := make(chan error)
 	go func() {
-		serverErrChan <- srv.Run(func(s *rpc.Server) error {
+		_ = srv.Run(func(s *rpc.Server) error {
 			return nil
 		})
 	}()

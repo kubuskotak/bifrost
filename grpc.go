@@ -21,6 +21,7 @@ type (
 	}
 )
 type GRpc struct {
+	errChan   chan error
 	rpcServer *rpc.Server
 	Port      GRPCPort
 	Opts      []rpc.ServerOption
@@ -48,10 +49,9 @@ func (g *GRpc) Run(callback GRPCCallback) error {
 		log.Error().Err(err).Msg("failed to register service")
 		return err
 	}
-	if err := g.rpcServer.Serve(n); err != nil {
-		log.Error().Int("port", int(g.Port)).Err(err).Msg("failed to listen:")
-		return err
-	}
+	go func() {
+		g.errChan <- g.rpcServer.Serve(n)
+	}()
 	g.waitForSignals()
 	g.Stop()
 	return nil
@@ -73,12 +73,15 @@ func (g *GRpc) waitForSignals() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 	for {
-		interrupt := <-interrupt
-		if interrupt == os.Interrupt {
+		select {
+		case <-interrupt:
 			g.Quiet()
 			log.Error().Err(fmt.Errorf("interrupt received, shutting down")).Msg("Server interrupted through context")
-			continue
+			return
+		case err := <-g.errChan:
+			g.Quiet()
+			log.Error().Err(err)
+			return
 		}
-		break
 	}
 }

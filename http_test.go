@@ -64,9 +64,8 @@ func TestHttpListenAndServe(t *testing.T) {
 	}()
 
 	// Testing
-	serverErrChan := make(chan error)
 	go func() {
-		serverErrChan <- srv.Run(http.NewServeMux())
+		_ = srv.Run(http.NewServeMux())
 	}()
 
 	resp, queryErr := http.Get(fmt.Sprintf("http://localhost:%d", port))
