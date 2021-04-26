@@ -40,7 +40,7 @@ func GetRootSchema(graphql embed.FS, dir string) (string, error) {
 }
 
 // Graphql handler func
-func Graphql(graphql embed.FS, dir string, resolver interface{}) http.HandlerFunc {
+func Graphql(graphql embed.FS, dir string, resolver interface{}, opts ...graph.SchemaOpt) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		bytes, erByte := GetRootSchema(graphql, dir)
 		if erByte != nil {
@@ -48,7 +48,7 @@ func Graphql(graphql embed.FS, dir string, resolver interface{}) http.HandlerFun
 			Status(w, r, http.StatusNoContent, NewResponse(r)).WriteJSON()
 			return
 		}
-		sch := graph.MustParseSchema(bytes, resolver)
+		sch := graph.MustParseSchema(bytes, resolver, opts...)
 		handler := &relay.Handler{Schema: sch}
 		handler.ServeHTTP(w, r)
 	}
