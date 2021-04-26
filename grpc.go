@@ -14,7 +14,7 @@ import (
 
 type (
 	GRPCPort     int
-	GRPCCallback func(*rpc.Server) error
+	GRPCCallback func(*rpc.Server)
 	GRPCOpts     struct {
 		Port GRPCPort
 		Opts []rpc.ServerOption
@@ -45,10 +45,7 @@ func (g *GRpc) Run(callback GRPCCallback) error {
 			g.Port,
 		))
 	log.Info().Msgf("Now serving at %v", g.rpcServer.GetServiceInfo())
-	if err := callback(g.rpcServer); err != nil {
-		log.Error().Err(err).Msg("failed to register service")
-		return err
-	}
+	callback(g.rpcServer)
 	go func() {
 		g.errChan <- g.rpcServer.Serve(n)
 	}()
