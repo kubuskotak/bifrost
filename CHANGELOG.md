@@ -1,7 +1,11 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+
+<a name="v0.1.9"></a>
+## [v0.1.9] - 2021-05-02
 ### Docs
+- add git-chglog
 - add git-chglog
 
 ### Feat
@@ -22,4 +26,5 @@
 - grpc and rest serve
 
 
-[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.1.9...HEAD
+[v0.1.9]: https://github.com/kubuskotak/bifrost/compare/v0.1.7...v0.1.9
