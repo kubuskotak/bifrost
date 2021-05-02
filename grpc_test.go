@@ -28,8 +28,6 @@ func TestNewServerGRPC(t *testing.T) {
 
 	// Testing
 	go func() {
-		_ = srv.Run(func(s *rpc.Server) error {
-			return nil
-		})
+		_ = srv.Run(func(s *rpc.Server) {})
 	}()
 }
