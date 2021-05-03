@@ -191,9 +191,10 @@ func HandlerAdapter(a Adapter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := a(w, r); err != nil {
 			w.Header().Set("X-Content-Type-Options", "nosniff")
+			status, _ := r.Context().Value(CtxError).(int)
 			bytes, err := json.Marshal(&Meta{
-				Code:    strconv.Itoa(r.Response.StatusCode),
-				Type:    http.StatusText(r.Response.StatusCode),
+				Code:    strconv.Itoa(status),
+				Type:    http.StatusText(status),
 				Message: err.Error(),
 			})
 			if err != nil {
