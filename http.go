@@ -2,10 +2,12 @@ package bifrost
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -181,4 +183,29 @@ func StatusCode(code int) string {
 
 func StatusText(code int) string {
 	return statusMap[code][1]
+}
+
+type Adapter func(w http.ResponseWriter, r *http.Request) error
+
+func HandlerAdapter(a Adapter) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := a(w, r); err != nil {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			bytes, err := json.Marshal(&Meta{
+				Code:    strconv.Itoa(r.Response.StatusCode),
+				Type:    http.StatusText(r.Response.StatusCode),
+				Message: err.Error(),
+			})
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			_, err = w.Write(bytes)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			return
+		}
+	}
 }
