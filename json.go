@@ -52,11 +52,24 @@ func RequestJSONBody(r *http.Request, extract interface{}) error {
 }
 
 // ResponsePayload set payload for response http
-func ResponsePayload(w http.ResponseWriter, code int, payload interface{}) error {
+func ResponsePayload(w http.ResponseWriter, r *http.Request, code int, payload interface{}) error {
+	null := make(map[string]interface{})
+	resp := &Response{
+		Version: Version{
+			Label:  "v1",
+			Number: "0.1.0",
+		},
+		Meta:       Meta{Code: StatusText(code)},
+		Data:       payload,
+		Pagination: null,
+	}
+	if ver, ok := r.Context().Value(CtxVersion).(Version); ok {
+		resp.Version = ver
+	}
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(true)
-	if err := enc.Encode(payload); err != nil {
+	if err := enc.Encode(resp); err != nil {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(http.StatusInternalServerError)
 		return err
