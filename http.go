@@ -191,12 +191,25 @@ func HandlerAdapter(a Adapter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := a(w, r); err != nil {
 			w.Header().Set("X-Content-Type-Options", "nosniff")
-			status, _ := r.Context().Value(CtxError).(int)
-			bytes, err := json.Marshal(&Meta{
-				Code:    strconv.Itoa(status),
-				Type:    http.StatusText(status),
-				Message: err.Error(),
-			})
+			code, _ := r.Context().Value(CtxError).(int)
+			null := make(map[string]interface{})
+			resp := &Response{
+				Version: Version{
+					Label:  "v1",
+					Number: "0.1.0",
+				},
+				Meta: Meta{
+					Code:    strconv.Itoa(code),
+					Type:    http.StatusText(code),
+					Message: err.Error(),
+				},
+				Data:       null,
+				Pagination: null,
+			}
+			if ver, ok := r.Context().Value(CtxVersion).(Version); ok {
+				resp.Version = ver
+			}
+			bytes, err := json.Marshal(resp)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
