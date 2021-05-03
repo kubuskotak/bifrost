@@ -1,6 +1,12 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+### Docs
+- update change log
+
+### Feat
+- http error response middleware
+
 
 <a name="v0.1.9"></a>
 ## [v0.1.9] - 2021-05-02
