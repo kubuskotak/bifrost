@@ -57,14 +57,6 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 					buf, _ = ioutil.ReadAll(r.Body)
 				}
 
-				readerBody := ioutil.NopCloser(bytes.NewBuffer(buf))
-				mediaBody := ioutil.NopCloser(bytes.NewBuffer(buf))
-				_ = r.Body.Close()
-				r.Body = readerBody
-
-				bufMediaBody := new(bytes.Buffer)
-				_, _ = bufMediaBody.ReadFrom(mediaBody)
-
 				// get content-type
 				s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
 
@@ -81,11 +73,11 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 
 					log.Info().
 						Str("content-type", s).
-						Str("body", bufMediaBody.String()).Msg("request payload")
+						Str("body", string(buf)).Msg("request payload")
 				case MultipartForm:
 				case ApplicationJSON:
 					// b := http.MaxBytesReader(w, b, 1048576)
-					body := json.NewDecoder(bufMediaBody)
+					body := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(buf)))
 					body.DisallowUnknownFields()
 
 					if err := body.Decode(&response); err != nil {
@@ -99,8 +91,9 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 				default:
 					log.Info().
 						Str("content-type", s).
-						Str("body", bufMediaBody.String()).Msg("request payload")
+						Str("body", string(buf)).Msg("request payload")
 				}
+				r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
 			}
 
 			log.Info().Msgf("tracing form middleware endpoint %s", r.URL.Path)
