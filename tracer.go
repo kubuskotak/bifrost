@@ -40,7 +40,6 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 				}
 			}()
 
-			opExt.SpanKindRPCServer.Set(span)
 			opExt.HTTPMethod.Set(span, r.Method)
 			opExt.HTTPUrl.Set(span, r.URL.Path)
 
@@ -60,10 +59,11 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 
 				readerBody := ioutil.NopCloser(bytes.NewBuffer(buf))
 				mediaBody := ioutil.NopCloser(bytes.NewBuffer(buf))
+				_ = r.Body.Close()
+				r.Body = readerBody
 
 				bufMediaBody := new(bytes.Buffer)
 				_, _ = bufMediaBody.ReadFrom(mediaBody)
-				r.Body = readerBody
 
 				// get content-type
 				s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
