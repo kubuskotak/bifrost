@@ -3,10 +3,13 @@ package bifrost
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"runtime/debug"
 	"strings"
 
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/opentracing/opentracing-go"
 	opExt "github.com/opentracing/opentracing-go/ext"
 	"github.com/rs/zerolog/log"
@@ -25,9 +28,30 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 			}
 			defer serverSpan.Finish()
 
+			defer func() {
+				if err := recover(); err != nil {
+					opExt.HTTPStatusCode.Set(serverSpan, uint16(http.StatusInternalServerError))
+					opExt.Error.Set(serverSpan, true)
+					serverSpan.SetTag("error.type", "panic")
+					serverSpan.LogKV(
+						"event", "error",
+						"error.kind", "panic",
+						"message", err,
+						"stack", string(debug.Stack()),
+					)
+					serverSpan.Finish()
+
+					panic(err)
+				}
+			}()
+
 			opExt.SpanKindRPCServer.Set(serverSpan)
 			opExt.HTTPMethod.Set(serverSpan, r.Method)
 			opExt.HTTPUrl.Set(serverSpan, r.URL.String())
+
+			resourceName := r.URL.Path
+			resourceName = r.Method + " " + resourceName
+			serverSpan.SetTag("resource.name", resourceName)
 
 			// There's nothing we can do with any errors here.
 			if err := tracer.Inject(
@@ -49,8 +73,12 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 					buf, _ = ioutil.ReadAll(r.Body)
 				}
 
-				r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
-				mediaBody := string(buf)
+				readerBody := ioutil.NopCloser(bytes.NewBuffer(buf))
+				mediaBody := ioutil.NopCloser(bytes.NewBuffer(buf))
+
+				bufMediaBody := new(bytes.Buffer)
+				_, _ = bufMediaBody.ReadFrom(mediaBody)
+				r.Body = readerBody
 
 				// get content-type
 				s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
@@ -68,11 +96,11 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 
 					log.Info().
 						Str("content-type", s).
-						Str("body", mediaBody).Msg("request payload")
+						Str("body", bufMediaBody.String()).Msg("request payload")
 				case MultipartForm:
 				case ApplicationJSON:
 					// b := http.MaxBytesReader(w, b, 1048576)
-					body := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer([]byte(mediaBody))))
+					body := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(bufMediaBody.Bytes())))
 					body.DisallowUnknownFields()
 
 					if err := body.Decode(&response); err != nil {
@@ -86,12 +114,28 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 				default:
 					log.Info().
 						Str("content-type", s).
-						Str("body", mediaBody).Msg("request payload")
+						Str("body", bufMediaBody.String()).Msg("request payload")
 				}
 			}
 
 			log.Info().Msgf("tracing form middleware endpoint %s", r.URL.String())
-			next.ServeHTTP(w, r.WithContext(ctx))
+			// pass the span through the request context and serve the request to the next middleware
+			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			next.ServeHTTP(ww, r.WithContext(ctx))
+
+			// set the status code
+			status := ww.Status()
+			opExt.HTTPStatusCode.Set(serverSpan, uint16(status))
+
+			if status >= 500 && status < 600 {
+				// mark 5xx server error
+				opExt.Error.Set(serverSpan, true)
+				serverSpan.SetTag("error.type", fmt.Sprintf("%d: %s", status, http.StatusText(status)))
+				serverSpan.LogKV(
+					"event", "error",
+					"message", fmt.Sprintf("%d: %s", status, http.StatusText(status)),
+				)
+			}
 		})
 	}
 }
