@@ -73,8 +73,8 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 
 					log.Info().
 						Str("content-type", s).
-						Str("body", string(buf)).Msg("request payload")
-					span.SetTag("request.payload", string(buf))
+						Str("body", string(buf)).Msg("resource payload")
+					span.SetTag("resource.payload", string(buf))
 				case MultipartForm:
 				case ApplicationJSON:
 					// b := http.MaxBytesReader(w, b, 1048576)
@@ -88,13 +88,13 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 					}
 					log.Info().
 						Str("content-type", s).
-						Interface("body", response).Msg("request payload")
-					span.SetTag("request.payload", response)
+						Interface("body", response).Msg("resource payload")
+					span.SetTag("resource.payload", response)
 				default:
 					log.Info().
 						Str("content-type", s).
-						Str("body", string(buf)).Msg("request payload")
-					span.SetTag("request.payload", string(buf))
+						Str("body", string(buf)).Msg("resource payload")
+					span.SetTag("resource.payload", string(buf))
 				}
 				r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
 			}
