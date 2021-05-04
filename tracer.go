@@ -1,13 +1,9 @@
 package bifrost
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"runtime/debug"
-	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/opentracing/opentracing-go"
@@ -40,70 +36,70 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 				}
 			}()
 
-			opExt.SpanKindRPCServer.Set(span)
+			opExt.SpanKind.Set(span, opExt.SpanKindRPCServerEnum)
 			opExt.HTTPMethod.Set(span, r.Method)
-			opExt.HTTPUrl.Set(span, r.URL.String())
+			opExt.HTTPUrl.Set(span, r.URL.Path)
 
 			resourceName := r.URL.Path
 			resourceName = r.Method + " " + resourceName
 			span.SetTag("resource.name", resourceName)
+			//
+			//JSONResponse(w)
+			//
+			//// check content length
+			//if r.ContentLength > 0 {
+			//	// Request
+			//	var buf []byte
+			//	if r.Body != nil { // Read
+			//		buf, _ = ioutil.ReadAll(r.Body)
+			//	}
+			//
+			//	readerBody := ioutil.NopCloser(bytes.NewBuffer(buf))
+			//	mediaBody := ioutil.NopCloser(bytes.NewBuffer(buf))
+			//
+			//	bufMediaBody := new(bytes.Buffer)
+			//	_, _ = bufMediaBody.ReadFrom(mediaBody)
+			//	r.Body = readerBody
+			//
+			//	// get content-type
+			//	s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
+			//
+			//	response := make(map[string]interface{}, 0)
+			//
+			//	switch MediaType(s) {
+			//	case TextPlain:
+			//	case FormURLEncoded:
+			//		if err := r.ParseForm(); err != nil {
+			//			log.Error().Err(ErrBadRequest(w, r, err)).Msg("Request body contains badly-formed form-urlencoded")
+			//			_ = ResponsePayload(w, r, http.StatusBadRequest, nil)
+			//			return
+			//		}
+			//
+			//		log.Info().
+			//			Str("content-type", s).
+			//			Str("body", bufMediaBody.String()).Msg("request payload")
+			//	case MultipartForm:
+			//	case ApplicationJSON:
+			//		// b := http.MaxBytesReader(w, b, 1048576)
+			//		body := json.NewDecoder(bufMediaBody)
+			//		body.DisallowUnknownFields()
+			//
+			//		if err := body.Decode(&response); err != nil {
+			//			log.Error().Err(ErrBadRequest(w, r, err)).Msg("Request body contains badly-formed JSON")
+			//			_ = ResponsePayload(w, r, http.StatusBadRequest, nil)
+			//			return
+			//		}
+			//		log.Info().
+			//			Str("content-type", s).
+			//			Interface("body", response).Msg("request payload")
+			//	default:
+			//		log.Info().
+			//			Str("content-type", s).
+			//			Str("body", bufMediaBody.String()).Msg("request payload")
+			//	}
+			//}
 
-			JSONResponse(w)
-
-			// check content length
-			if r.ContentLength > 0 {
-				// Request
-				var buf []byte
-				if r.Body != nil { // Read
-					buf, _ = ioutil.ReadAll(r.Body)
-				}
-
-				readerBody := ioutil.NopCloser(bytes.NewBuffer(buf))
-				mediaBody := ioutil.NopCloser(bytes.NewBuffer(buf))
-
-				bufMediaBody := new(bytes.Buffer)
-				_, _ = bufMediaBody.ReadFrom(mediaBody)
-				r.Body = readerBody
-
-				// get content-type
-				s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
-
-				response := make(map[string]interface{}, 0)
-
-				switch MediaType(s) {
-				case TextPlain:
-				case FormURLEncoded:
-					if err := r.ParseForm(); err != nil {
-						log.Error().Err(ErrBadRequest(w, r, err)).Msg("Request body contains badly-formed form-urlencoded")
-						_ = ResponsePayload(w, r, http.StatusBadRequest, nil)
-						return
-					}
-
-					log.Info().
-						Str("content-type", s).
-						Str("body", bufMediaBody.String()).Msg("request payload")
-				case MultipartForm:
-				case ApplicationJSON:
-					// b := http.MaxBytesReader(w, b, 1048576)
-					body := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(bufMediaBody.Bytes())))
-					body.DisallowUnknownFields()
-
-					if err := body.Decode(&response); err != nil {
-						log.Error().Err(ErrBadRequest(w, r, err)).Msg("Request body contains badly-formed JSON")
-						_ = ResponsePayload(w, r, http.StatusBadRequest, nil)
-						return
-					}
-					log.Info().
-						Str("content-type", s).
-						Interface("body", response).Msg("request payload")
-				default:
-					log.Info().
-						Str("content-type", s).
-						Str("body", bufMediaBody.String()).Msg("request payload")
-				}
-			}
-
-			log.Info().Msgf("tracing form middleware endpoint %s", r.URL.String())
+			log.Info().Msgf("tracing form middleware endpoint %s", r.URL.Path)
 			// pass the span through the request context and serve the request to the next middleware
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
 			next.ServeHTTP(ww, r.WithContext(traceCtx))
