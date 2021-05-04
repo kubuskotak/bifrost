@@ -7,27 +7,6 @@ import (
 	"net/http"
 )
 
-// WriteJSON Write writes the data to http Response writer
-func (r *responseWriter) WriteJSON() {
-	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
-	enc.SetEscapeHTML(true)
-	if err := enc.Encode(r.Response); err != nil {
-		http.Error(r.Writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	r.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-	if status, ok := r.Request.Context().Value(CtxResponse).(int); ok {
-		r.Writer.WriteHeader(status)
-	}
-	_, err := r.Writer.Write(buf.Bytes())
-	if err != nil {
-		http.Error(r.Writer, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
 // JSONResponse set header content-type to json format
 func JSONResponse(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -59,7 +38,7 @@ func ResponsePayload(w http.ResponseWriter, r *http.Request, code int, payload i
 			Label:  "v1",
 			Number: "0.1.0",
 		},
-		Meta:       Meta{Code: StatusText(code)},
+		Meta:       Meta{Code: http.StatusText(code)},
 		Data:       payload,
 		Pagination: null,
 	}

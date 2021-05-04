@@ -6,125 +6,174 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+func setupResponse() Response {
+	return Response{
+		Pagination: map[string]interface{}{},
+	}
+}
+
 func TestSemanticVersion(t *testing.T) {
+	response := setupResponse()
+	label := "v1"
+	version := "1.0.0"
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	assert.NoError(t, err)
 	w := httptest.NewRecorder()
-	w.WriteHeader(StatusSuccess) // set header code
-	if got, want := w.Code, StatusSuccess; got != want {
+	w.WriteHeader(http.StatusOK) // set header code
+	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("status code got: %d, want %d", got, want)
 	}
-	SemanticVersion(r, "v1", "1.0.0")
-	data := map[string]interface{}{
+
+	SemanticVersion(r, label, version)
+	expected := map[string]interface{}{
 		"message": "transaksi telah sukses",
 	}
-	result := NewResponse(r)
-	result.Body(data)
-	result.APIStatusSuccess(w, r).WriteJSON()
 
-	actual, err := ioutil.ReadAll(w.Body)
+	JSONResponse(w)
+	err = ResponsePayload(w, r, http.StatusOK, expected)
+	assert.NoError(t, err)
+
+	bytes, err := ioutil.ReadAll(w.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
+	var actual Response
+	err = json.Unmarshal(bytes, &actual)
+	assert.NoError(t, err)
 
-	t.Log(result)
-	t.Log(string(actual))
-	assert.Equal(t, result.Data, data)
+	response.Version = map[string]interface{}{
+		"label":  label,
+		"number": version,
+	}
+	response.Data = expected
+	response.Meta = map[string]interface{}{"code": http.StatusText(http.StatusOK)}
+	assert.Equal(t, response, actual)
 }
 
 func TestNew(t *testing.T) {
+	response := setupResponse()
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	assert.NoError(t, err)
 	w := httptest.NewRecorder()
-	w.WriteHeader(StatusSuccess) // set header code
-	if got, want := w.Code, StatusSuccess; got != want {
+	w.WriteHeader(http.StatusOK) // set header code
+	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("status code got: %d, want %d", got, want)
 	}
-	data := map[string]interface{}{
+	expected := map[string]interface{}{
 		"message": "transaksi telah sukses",
 	}
-	result := NewResponse(r)
-	result.Body(data)
-	result.APIStatusSuccess(w, r).WriteJSON()
 
-	actual, err := ioutil.ReadAll(w.Body)
+	JSONResponse(w)
+	err = ResponsePayload(w, r, http.StatusOK, expected)
+	assert.NoError(t, err)
+
+	bytes, err := ioutil.ReadAll(w.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Log(string(actual))
-	t.Log(result)
-	assert.Equal(t, result.Data, data)
+	var actual Response
+	err = json.Unmarshal(bytes, &actual)
+	assert.NoError(t, err)
+
+	response.Version = map[string]interface{}{
+		"label":  "v1",
+		"number": "0.1.0",
+	}
+	response.Data = expected
+	response.Meta = map[string]interface{}{"code": http.StatusText(http.StatusOK)}
+	assert.Equal(t, response, actual)
 }
 
-func TestResponseErrors(t *testing.T) {
-	errs := make([]Meta, 0)
-	errs = append(errs, Meta{
-		Code:    strconv.Itoa(StatusInternalError),
-		Type:    StatusCode(StatusInternalError),
-		Message: fmt.Sprintf("%s or %v", StatusText(StatusInternalError), "constraint unique key duplicate"),
-	})
-
+func TestErrInternalServerError(t *testing.T) {
+	//response := setupResponse()
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	assert.NoError(t, err)
 	w := httptest.NewRecorder()
-	w.WriteHeader(StatusInternalError) // set header code
-	if got, want := w.Code, StatusInternalError; got != want {
+	errReq := ErrInternalServerError(w, r, fmt.Errorf("%s or %v", http.StatusText(http.StatusInternalServerError), "constraint unique key duplicate"))
+	assert.Error(t, errReq)
+	if got, want := w.Code, http.StatusInternalServerError; got != want {
 		t.Fatalf("status code got: %d, want %d", got, want)
 	}
-
-	result := NewResponse(r)
-	result.APIStatusInternalError(w, r,
-		fmt.Errorf("%s", "constraint unique key duplicate"),
-	).WriteJSON()
-	assert.Equal(t, result.Meta, errs)
-	assert.Equal(t, strconv.Itoa(StatusInternalError), result.Meta.([]Meta)[0].Code)
-	assert.Contains(t, result.Meta.([]Meta)[0].Message, "constraint unique key duplicate")
 }
 
-func TestResponseErrorsJSON(t *testing.T) {
+func TestErrBadRequest(t *testing.T) {
+	//response := setupResponse()
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
-
 	assert.NoError(t, err)
 	w := httptest.NewRecorder()
-	w.WriteHeader(StatusInternalError) // set header code
-	if got, want := w.Code, StatusInternalError; got != want {
+	errReq := ErrBadRequest(w, r, fmt.Errorf("%s or %v", http.StatusText(http.StatusBadRequest), "constraint unique key duplicate"))
+	assert.Error(t, errReq)
+	if got, want := w.Code, http.StatusBadRequest; got != want {
 		t.Fatalf("status code got: %d, want %d", got, want)
 	}
+}
 
-	errs := make([]Meta, 0)
-	errs = append(errs, Meta{
-		Code:    strconv.Itoa(StatusInternalError),
-		Type:    StatusCode(StatusInternalError),
-		Message: fmt.Sprintf("%s or %v", StatusText(StatusInternalError), "constraint unique key duplicate"),
+func TestStatusBadGateway(t *testing.T) {
+	//response := setupResponse()
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	assert.NoError(t, err)
+	w := httptest.NewRecorder()
+	errReq := ErrBadGateway(w, r, fmt.Errorf("%s or %v", http.StatusText(http.StatusBadGateway), "constraint unique key duplicate"))
+	assert.Error(t, errReq)
+	if got, want := w.Code, http.StatusBadGateway; got != want {
+		t.Fatalf("status code got: %d, want %d", got, want)
+	}
+}
+
+func TestStatusGatewayTimeout(t *testing.T) {
+	//response := setupResponse()
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	assert.NoError(t, err)
+	w := httptest.NewRecorder()
+	errReq := ErrGatewayTimeout(w, r, fmt.Errorf("%s or %v", http.StatusText(http.StatusGatewayTimeout), "constraint unique key duplicate"))
+	assert.Error(t, errReq)
+	if got, want := w.Code, http.StatusGatewayTimeout; got != want {
+		t.Fatalf("status code got: %d, want %d", got, want)
+	}
+}
+
+func TestHttpErrStatus(t *testing.T) {
+	status := []struct {
+		label string
+		code  int
+		err   func(w http.ResponseWriter, r *http.Request, err error) error
+	}{
+		{http.StatusText(http.StatusBadRequest), http.StatusBadRequest, ErrBadRequest},
+		{http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized, ErrUnauthorized},
+		{http.StatusText(http.StatusPaymentRequired), http.StatusPaymentRequired, ErrPaymentRequired},
+		{http.StatusText(http.StatusForbidden), http.StatusForbidden, ErrForbidden},
+		{http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed, ErrMethodNotAllowed},
+		{http.StatusText(http.StatusNotAcceptable), http.StatusNotAcceptable, ErrNotAcceptable},
+		{http.StatusText(http.StatusProxyAuthRequired), http.StatusProxyAuthRequired, ErrProxyAuthRequired},
+		{http.StatusText(http.StatusRequestTimeout), http.StatusRequestTimeout, ErrRequestTimeout},
+		{http.StatusText(http.StatusUnsupportedMediaType), http.StatusUnsupportedMediaType, ErrUnsupportedMediaType},
+		{http.StatusText(http.StatusUnprocessableEntity), http.StatusUnprocessableEntity, ErrUnprocessableEntity},
+		{http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError, ErrInternalServerError},
+		{http.StatusText(http.StatusBadGateway), http.StatusBadGateway, ErrBadGateway},
+		{http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable, ErrServiceUnavailable},
+		{http.StatusText(http.StatusGatewayTimeout), http.StatusGatewayTimeout, ErrGatewayTimeout},
+	}
+
+	t.Run("http status", func(t *testing.T) {
+		for _, tt := range status {
+			t.Run(tt.label, func(t *testing.T) {
+				r, err := http.NewRequest(http.MethodGet, "/", nil)
+				assert.NoError(t, err)
+				w := httptest.NewRecorder()
+				errReq := tt.err(w, r, fmt.Errorf("%s or %v", tt.label, "constraint unique key duplicate"))
+				assert.Error(t, errReq)
+				if got, want := w.Code, tt.code; got != want {
+					t.Fatalf("status code got: %d, want %d", got, want)
+				}
+			})
+		}
 	})
-	result := NewResponse(r)
-	result.Errors(errs...)
-	result.APIStatusInternalError(w, r,
-		fmt.Errorf("%s", "constraint unique key duplicate"),
-	).WriteJSON()
-
-	expected, err := json.Marshal(result)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	actual, err := ioutil.ReadAll(w.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, result.Meta, errs)
-	assert.Equal(t, strconv.Itoa(StatusInternalError), result.Meta.([]Meta)[0].Code)
-	assert.Contains(t, result.Meta.([]Meta)[0].Message, "constraint unique key duplicate")
-	assert.Equal(t, string(expected), strings.TrimSuffix(string(actual), "\n"))
 }
 
 func TestResponseCSV(t *testing.T) {
@@ -138,13 +187,13 @@ func TestResponseCSV(t *testing.T) {
 
 	assert.NoError(t, err)
 	w := httptest.NewRecorder()
-	w.WriteHeader(StatusSuccess) // set header code
-	if got, want := w.Code, StatusSuccess; got != want {
+	w.WriteHeader(http.StatusOK) // set header code
+	if got, want := w.Code, http.StatusOK; got != want {
 		t.Fatalf("status code got: %d, want %d", got, want)
 	}
 
-	result := NewResponse(r)
-	result.APIStatusSuccess(w, r).WriteCSV(rows, "result-route-fleets") // Write http Body
+	erCVS := ResponseCSVPayload(w, r, http.StatusOK, rows, "result-route-fleets")
+	assert.NoError(t, erCVS)
 
 	actual, err := ioutil.ReadAll(w.Body)
 	if err != nil {

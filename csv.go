@@ -4,36 +4,38 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
-	"log"
 	"net/http"
 )
 
-// WriteCSV Write writes the data to http Response writer
-func (r *responseWriter) WriteCSV(rows [][]string, filename string) {
+// ResponseCSVPayload set csv payload for response http
+func ResponseCSVPayload(w http.ResponseWriter, r *http.Request, code int, rows [][]string, filename string) error {
 	buf := &bytes.Buffer{}
 	xCsv := csv.NewWriter(buf)
 
 	for _, row := range rows {
 		if err := xCsv.Write(row); err != nil {
-			log.Println("error writing record to csv:", err)
-			http.Error(r.Writer, err.Error(), http.StatusInternalServerError)
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.WriteHeader(http.StatusInternalServerError)
+			return err
 		}
 	}
 	xCsv.Flush()
 
 	if err := xCsv.Error(); err != nil {
-		log.Println("error writing record to csv:", err)
-		http.Error(r.Writer, err.Error(), http.StatusInternalServerError)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusInternalServerError)
+		return err
 	}
-	r.Writer.Header().Set("Content-Description", "File Transfer")
-	r.Writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", filename))
-	r.Writer.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	if status, ok := r.Request.Context().Value(CtxResponse).(int); ok {
-		r.Writer.WriteHeader(status)
-	}
-	_, err := r.Writer.Write(buf.Bytes())
+	w.Header().Set("Content-Description", "File Transfer")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", filename))
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+
+	w.WriteHeader(code)
+	_, err := w.Write(buf.Bytes())
 	if err != nil {
-		http.Error(r.Writer, err.Error(), http.StatusInternalServerError)
-		return
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(http.StatusInternalServerError)
+		return err
 	}
+	return nil
 }
