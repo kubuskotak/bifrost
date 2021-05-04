@@ -18,52 +18,37 @@ import (
 func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			serverSpan := opentracing.SpanFromContext(ctx)
-			if serverSpan == nil {
-				// All we can do is create a new root span.
-				serverSpan = tracer.StartSpan(operationName)
-			} else {
-				serverSpan.SetOperationName(operationName)
-			}
-			defer serverSpan.Finish()
+			srvCtx, _ := tracer.Extract(opentracing.HTTPHeaders,
+				opentracing.HTTPHeadersCarrier(r.Header))
+			span, traceCtx := opentracing.StartSpanFromContextWithTracer(r.Context(), tracer, operationName, opExt.RPCServerOption(srvCtx))
+			defer span.Finish()
 
 			defer func() {
 				if err := recover(); err != nil {
-					opExt.HTTPStatusCode.Set(serverSpan, uint16(http.StatusInternalServerError))
-					opExt.Error.Set(serverSpan, true)
-					serverSpan.SetTag("error.type", "panic")
-					serverSpan.LogKV(
+					opExt.HTTPStatusCode.Set(span, uint16(http.StatusInternalServerError))
+					opExt.Error.Set(span, true)
+					span.SetTag("error.type", "panic")
+					span.LogKV(
 						"event", "error",
 						"error.kind", "panic",
 						"message", err,
 						"stack", string(debug.Stack()),
 					)
-					serverSpan.Finish()
+					span.Finish()
 
 					panic(err)
 				}
 			}()
 
-			opExt.SpanKindRPCServer.Set(serverSpan)
-			opExt.HTTPMethod.Set(serverSpan, r.Method)
-			opExt.HTTPUrl.Set(serverSpan, r.URL.String())
+			opExt.SpanKindRPCServer.Set(span)
+			opExt.HTTPMethod.Set(span, r.Method)
+			opExt.HTTPUrl.Set(span, r.URL.String())
 
 			resourceName := r.URL.Path
 			resourceName = r.Method + " " + resourceName
-			serverSpan.SetTag("resource.name", resourceName)
-
-			// There's nothing we can do with any errors here.
-			if err := tracer.Inject(
-				serverSpan.Context(),
-				opentracing.HTTPHeaders,
-				opentracing.HTTPHeadersCarrier(r.Header),
-			); err != nil {
-				log.Error().Err(err).Msg("Tracing error")
-			}
+			span.SetTag("resource.name", resourceName)
 
 			JSONResponse(w)
-			ctx = opentracing.ContextWithSpan(ctx, serverSpan)
 
 			// check content length
 			if r.ContentLength > 0 {
@@ -121,17 +106,17 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 			log.Info().Msgf("tracing form middleware endpoint %s", r.URL.String())
 			// pass the span through the request context and serve the request to the next middleware
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			next.ServeHTTP(ww, r.WithContext(ctx))
+			next.ServeHTTP(ww, r.WithContext(traceCtx))
 
 			// set the status code
 			status := ww.Status()
-			opExt.HTTPStatusCode.Set(serverSpan, uint16(status))
+			opExt.HTTPStatusCode.Set(span, uint16(status))
 
 			if status >= 500 && status < 600 {
 				// mark 5xx server error
-				opExt.Error.Set(serverSpan, true)
-				serverSpan.SetTag("error.type", fmt.Sprintf("%d: %s", status, http.StatusText(status)))
-				serverSpan.LogKV(
+				opExt.Error.Set(span, true)
+				span.SetTag("error.type", fmt.Sprintf("%d: %s", status, http.StatusText(status)))
+				span.LogKV(
 					"event", "error",
 					"message", fmt.Sprintf("%d: %s", status, http.StatusText(status)),
 				)
