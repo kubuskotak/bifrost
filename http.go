@@ -61,8 +61,6 @@ func NewServerMux(opts ServeOpts) *Server {
 }
 
 func (s *Server) Run(handler http.Handler, ctx context.Context) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
 	s.httpServer.Handler = handler
 	// Description µ micro service
 	fmt.Println(
