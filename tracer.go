@@ -2,6 +2,7 @@ package bifrost
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -18,11 +19,15 @@ import (
 func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			srvCtx, _ := tracer.Extract(opentracing.HTTPHeaders,
-				opentracing.HTTPHeadersCarrier(r.Header))
-			span, traceCtx := opentracing.StartSpanFromContextWithTracer(r.Context(), tracer, operationName, opExt.RPCServerOption(srvCtx))
+			var span opentracing.Span
+			carrier := opentracing.HTTPHeadersCarrier(r.Header)
+			tracerCtx, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, carrier)
+			if err != nil {
+				span = opentracing.StartSpan(r.URL.Path)
+			} else {
+				span = opentracing.StartSpan(r.URL.Path, opentracing.ChildOf(tracerCtx))
+			}
 			defer span.Finish()
-
 			defer func() {
 				if err := recover(); err != nil {
 					opExt.HTTPStatusCode.Set(span, uint16(http.StatusInternalServerError))
@@ -40,12 +45,21 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 				}
 			}()
 
+			span.SetTag("request.id", r.Header.Get("X-Request-Id"))
+
 			opExt.HTTPMethod.Set(span, r.Method)
 			opExt.HTTPUrl.Set(span, r.URL.Path)
 
 			resourceName := r.URL.Path
 			resourceName = r.Method + " " + resourceName
 			span.SetTag("resource.name", resourceName)
+
+			// There's nothing we can do with any errors here.
+			if err := tracer.Inject(span.Context(), opentracing.HTTPHeaders, carrier); err != nil {
+				opExt.Error.Set(span, true)
+			} else {
+				r = r.WithContext(opentracing.ContextWithSpan(r.Context(), span))
+			}
 
 			JSONResponse(w)
 
@@ -100,9 +114,19 @@ func HttpTracer(tracer opentracing.Tracer, operationName string) func(next http.
 			}
 
 			log.Info().Msgf("tracing form middleware endpoint %s", r.URL.Path)
+
+			traceID := r.Header.Get("Uber-Trace-Id")
+			if traceID != "" {
+				traceID = strings.Split(traceID, ":")[0]
+				w.Header().Set("X-Trace-Id", traceID)
+				
+				// adds traceID to a context and get from it latter
+				r = r.WithContext(context.WithValue(r.Context(), "tracer-id", traceID))
+			}
+
 			// pass the span through the request context and serve the request to the next middleware
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			next.ServeHTTP(ww, r.WithContext(traceCtx))
+			next.ServeHTTP(ww, r)
 
 			// set the status code
 			status := ww.Status()
