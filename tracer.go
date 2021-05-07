@@ -139,21 +139,16 @@ func HttpTracer(next http.Handler) http.Handler {
 		log.Info().Msgf("tracing form middleware endpoint %s", r.URL.Path)
 
 		var traceID string
-		if sc, ok := span.Context().(jaeger.SpanContext); ok {
+		if traceID = r.Header.Get("Uber-Trace-Id"); len(traceID) > 0 {
+			traceID = strings.Split(traceID, ":")[0]
+			w.Header().Set("X-Trace-Id", traceID)
+		} else if sc, ok := span.Context().(jaeger.SpanContext); ok {
 			traceID = sc.TraceID().String()
 			w.Header().Set("X-Trace-Id", traceID)
 
-			// adds traceID to a context and get from it latter
-			r = r.WithContext(context.WithValue(r.Context(), TracerContext, traceID))
 		}
-		//traceID := r.Header.Get("Uber-Trace-Id")
-		//if traceID != "" {
-		//	traceID = strings.Split(traceID, ":")[0]
-		//	w.Header().Set("X-Trace-Id", traceID)
-		//
-		//	// adds traceID to a context and get from it latter
-		//	r = r.WithContext(context.WithValue(r.Context(), TracerContext, traceID))
-		//}
+		// adds traceID to a context and get from it latter
+		r = r.WithContext(context.WithValue(r.Context(), TracerContext, traceID))
 
 		// pass the span through the request context and serve the request to the next middleware
 		ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
