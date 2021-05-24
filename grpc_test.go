@@ -1,6 +1,7 @@
 package bifrost
 
 import (
+	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -22,7 +23,9 @@ func TestNewServerGRPC(t *testing.T) {
 	// Make sure server exits when receiving TERM signal.
 	go func() {
 		time.Sleep(2 * time.Second)
-		syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+		p, err := os.FindProcess(os.Getpid())
+		assert.NoError(t, err)
+		_ = p.Signal(syscall.SIGTERM)
 		done <- struct{}{}
 	}()
 
