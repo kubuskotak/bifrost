@@ -103,16 +103,20 @@ func (s *Server) Quiet(ctx context.Context) {
 }
 
 func (s *Server) waitForSignals(ctx context.Context) {
+	// Do not make the application hang when it is shutdown.
+	ctxOut, cancel := context.WithTimeout(ctx, time.Second*5)
+	defer cancel()
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 	for {
 		select {
 		case <-interrupt:
-			s.Quiet(ctx)
+			s.Quiet(ctxOut)
 			log.Error().Err(fmt.Errorf("interrupt received, shutting down")).Msg("Server interrupted through context")
 			return
 		case err := <-s.errChan:
-			s.Quiet(ctx)
+			s.Quiet(ctxOut)
 			log.Error().Err(err)
 			return
 		}
