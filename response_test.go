@@ -183,7 +183,7 @@ func TestResponseCSV(t *testing.T) {
 	rows = append(rows, []string{"SO45645", "WPD001123", "Jakarta Selatan", "1", "43.00", "2"})
 	rows = append(rows, []string{"SO45645", "WPD003343", "Jakarta Selatan", "1", "43.00", "3"})
 
-	r, err := http.NewRequest(http.MethodGet, "/csv", nil)
+	_, err := http.NewRequest(http.MethodGet, "/csv", nil)
 
 	assert.NoError(t, err)
 	w := httptest.NewRecorder()
@@ -192,7 +192,7 @@ func TestResponseCSV(t *testing.T) {
 		t.Fatalf("status code got: %d, want %d", got, want)
 	}
 
-	erCVS := ResponseCSVPayload(w, r, http.StatusOK, rows, "result-route-fleets")
+	erCVS := ResponseCSVPayload(w, http.StatusOK, rows, "result-route-fleets")
 	assert.NoError(t, erCVS)
 
 	actual, err := ioutil.ReadAll(w.Body)

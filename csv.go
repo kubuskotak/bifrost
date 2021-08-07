@@ -8,7 +8,7 @@ import (
 )
 
 // ResponseCSVPayload set csv payload for response http
-func ResponseCSVPayload(w http.ResponseWriter, r *http.Request, code int, rows [][]string, filename string) error {
+func ResponseCSVPayload(w http.ResponseWriter, code int, rows [][]string, filename string) error {
 	buf := &bytes.Buffer{}
 	xCsv := csv.NewWriter(buf)
 
