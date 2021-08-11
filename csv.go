@@ -27,8 +27,8 @@ func ResponseCSVPayload(w http.ResponseWriter, code int, rows [][]string, filena
 		return err
 	}
 	w.Header().Set("Content-Description", "File Transfer")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s.csv", filename))
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set(HeaderContentDisposition, fmt.Sprintf("attachment; filename=%s.csv", filename))
+	w.Header().Set(HeaderContentType, MIMETextCSVCharsetUTF8)
 
 	w.WriteHeader(code)
 	_, err := w.Write(buf.Bytes())
