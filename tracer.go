@@ -94,14 +94,14 @@ func HttpTracer(next http.Handler) http.Handler {
 				buf, _ = ioutil.ReadAll(r.Body)
 			}
 
+			response := make(map[string]interface{})
+
 			// get content-type
-			s := strings.ToLower(strings.TrimSpace(strings.Split(r.Header.Get("Content-Type"), ";")[0]))
+			cType := r.Header.Get(HeaderContentType)
 
-			response := make(map[string]interface{}, 0)
-
-			switch MediaType(s) {
-			case TextPlain:
-			case FormURLEncoded:
+			switch {
+			case strings.HasPrefix(cType, MIMETextPlain):
+			case strings.HasPrefix(cType, MIMEApplicationForm):
 				if err := r.ParseForm(); err != nil {
 					log.Error().Err(ErrBadRequest(w, r, err)).Msg("Request body contains badly-formed form-urlencoded")
 					_ = ResponsePayload(w, r, http.StatusBadRequest, nil)
@@ -109,11 +109,11 @@ func HttpTracer(next http.Handler) http.Handler {
 				}
 
 				log.Info().
-					Str("content-type", s).
+					Str(HeaderContentType, cType).
 					Str("body", string(buf)).Msg("resource payload")
 				span.SetTag("resource.payload", string(buf))
-			case MultipartForm:
-			case ApplicationJSON:
+			case strings.HasPrefix(cType, MIMEMultipartForm):
+			case strings.HasPrefix(cType, MIMEApplicationJSON):
 				// b := http.MaxBytesReader(w, b, 1048576)
 				body := json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(buf)))
 				body.DisallowUnknownFields()
@@ -124,12 +124,12 @@ func HttpTracer(next http.Handler) http.Handler {
 					return
 				}
 				log.Info().
-					Str("content-type", s).
+					Str(HeaderContentType, cType).
 					Interface("body", response).Msg("resource payload")
 				span.SetTag("resource.payload", response)
 			default:
 				log.Info().
-					Str("content-type", s).
+					Str(HeaderContentType, cType).
 					Str("body", string(buf)).Msg("resource payload")
 				span.SetTag("resource.payload", string(buf))
 			}
@@ -139,12 +139,12 @@ func HttpTracer(next http.Handler) http.Handler {
 		log.Info().Msgf("tracing form middleware endpoint %s", r.URL.Path)
 
 		var traceID string
-		if traceID = r.Header.Get("Uber-Trace-Id"); len(traceID) > 0 {
+		if traceID = r.Header.Get(HeaderUberTraceId); len(traceID) > 0 {
 			traceID = strings.Split(traceID, ":")[0]
-			w.Header().Set("X-Trace-Id", traceID)
+			w.Header().Set(HeaderXTraceId, traceID)
 		} else if sc, ok := span.Context().(jaeger.SpanContext); ok {
 			traceID = sc.TraceID().String()
-			w.Header().Set("X-Trace-Id", traceID)
+			w.Header().Set(HeaderXTraceId, traceID)
 
 		}
 		// adds traceID to a context and get from it latter

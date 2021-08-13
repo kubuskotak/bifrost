@@ -123,15 +123,6 @@ func (s *Server) waitForSignals(ctx context.Context) {
 	}
 }
 
-type MediaType string
-
-const (
-	ApplicationJSON MediaType = "application/json"
-	FormURLEncoded  MediaType = "application/x-www-form-urlencoded"
-	MultipartForm   MediaType = "multipart/form-data"
-	TextPlain       MediaType = "text/plain"
-)
-
 type Adapter func(w http.ResponseWriter, r *http.Request) error
 
 func HandlerAdapter(a Adapter) http.HandlerFunc {

@@ -9,7 +9,7 @@ import (
 
 // JSONResponse set header content-type to json format
 func JSONResponse(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set(HeaderContentType, MIMEApplicationJSONCharsetUTF8)
 }
 
 // RequestJSONBody get json body format

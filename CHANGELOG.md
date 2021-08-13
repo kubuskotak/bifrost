@@ -1,7 +1,11 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+### Doc
+- update change log
+
 ### Feat
+- bind body form
 - remove unused request csv response
 - add context timeout
 - change system kill testing
@@ -9,15 +13,8 @@
 
 ### Fix
 - tracer id on context
-- tracer id on context
 - body reader io tracer
-- body reader io tracer
-- body reader io tracer
-- body reader io tracer
-- body reader io tracer
-- body reader io tracer
-- body reader io tracer
-- body reader io tracer
+
 
 
 <a name="v0.2.0"></a>
@@ -28,10 +25,6 @@
 
 ### Feat
 - tracer http middleware, error test,csv
-- tracer http middleware, error test,csv
-- http error response middleware
-- http error response middleware
-- http error response middleware
 - http error response middleware
 
 
