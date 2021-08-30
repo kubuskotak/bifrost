@@ -35,6 +35,8 @@ const (
 	MIMETextPlainCharsetUTF8             = MIMETextPlain + "; " + charsetUTF8
 	MIMEMultipartForm                    = "multipart/form-data"
 	MIMEOctetStream                      = "application/octet-stream"
+	MIMEImageJPEG                        = "image/jpeg"
+	MIMEImagePNG                         = "image/png"
 
 	defaultMemory = 32 << 20 // 32 MB
 )
