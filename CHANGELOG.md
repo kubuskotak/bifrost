@@ -1,11 +1,23 @@
 <a name="unreleased"></a>
 ## [Unreleased]
 
+
+<a name="v0.2.6"></a>
+## [v0.2.6] - 2021-08-30
+### Doc
+- tidy changelog
+
+### Feat
+- bind request form and img base64
+- bind body form
+
+
+<a name="v0.2.5"></a>
+## [v0.2.5] - 2021-08-07
 ### Doc
 - update change log
 
 ### Feat
-- bind body form
 - remove unused request csv response
 - add context timeout
 - change system kill testing
@@ -13,8 +25,15 @@
 
 ### Fix
 - tracer id on context
+- tracer id on context
 - body reader io tracer
-
+- body reader io tracer
+- body reader io tracer
+- body reader io tracer
+- body reader io tracer
+- body reader io tracer
+- body reader io tracer
+- body reader io tracer
 
 
 <a name="v0.2.0"></a>
@@ -25,6 +44,10 @@
 
 ### Feat
 - tracer http middleware, error test,csv
+- tracer http middleware, error test,csv
+- http error response middleware
+- http error response middleware
+- http error response middleware
 - http error response middleware
 
 
@@ -52,6 +75,8 @@
 - grpc and rest serve
 
 
-[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.2.6...HEAD
+[v0.2.6]: https://github.com/kubuskotak/bifrost/compare/v0.2.5...v0.2.6
+[v0.2.5]: https://github.com/kubuskotak/bifrost/compare/v0.2.0...v0.2.5
 [v0.2.0]: https://github.com/kubuskotak/bifrost/compare/v0.1.9...v0.2.0
 [v0.1.9]: https://github.com/kubuskotak/bifrost/compare/v0.1.7...v0.1.9
