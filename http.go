@@ -127,6 +127,9 @@ type Adapter func(w http.ResponseWriter, r *http.Request) error
 
 func HandlerAdapter(a Adapter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if cType, ok := r.Context().Value(ContentTypeCtxKey).(ContentType); ok {
+			w.Header().Set(HeaderContentType, GetIdxContentType(cType))
+		}
 		if err := a(w, r); err != nil {
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			code, _ := r.Context().Value(CtxError).(int)

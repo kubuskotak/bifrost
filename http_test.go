@@ -83,3 +83,51 @@ func TestHttpListenAndServe(t *testing.T) {
 	respStatus := resp.StatusCode
 	assert.Equal(t, http.StatusNotFound, respStatus)
 }
+
+func TestHttpContentTypeMiddleware(t *testing.T) {
+	port, err := findOpenPort()
+	if err != nil {
+		assert.Fail(t, "could not find a testing port")
+	}
+	t.Log("Using port", port)
+	srv := NewServerMux(ServeOpts{
+		Port:    WebPort(port),
+		TimeOut: WebTimeOut(100),
+	})
+	done := make(chan struct{})
+	// Make sure server exits when receiving TERM signal.
+	go func() {
+		time.Sleep(2 * time.Second)
+		p, err := os.FindProcess(os.Getpid())
+		assert.NoError(t, err)
+		_ = p.Signal(syscall.SIGTERM)
+		done <- struct{}{}
+	}()
+
+	mux := http.NewServeMux()
+	mux.Handle("/", HandlerAdapter(
+		func(w http.ResponseWriter, r *http.Request) error {
+			return nil
+		}),
+	)
+	var handler http.Handler = mux
+	handler = SetContentType(ContentTypeJSON)(handler)
+
+	// Testing
+	go func() {
+		_ = srv.Run(handler)
+	}()
+
+	resp, queryErr := http.Get(fmt.Sprintf("http://localhost:%d", port))
+
+	if resp != nil {
+		defer func() {
+			_ = resp.Body.Close()
+		}()
+	}
+
+	assert.Nil(t, queryErr)
+	respStatus := resp.StatusCode
+	assert.Equal(t, http.StatusOK, respStatus)
+	assert.Equal(t, resp.Header.Get(HeaderContentType), MIMEApplicationJSON)
+}

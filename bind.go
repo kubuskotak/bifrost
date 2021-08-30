@@ -1,6 +1,7 @@
 package bifrost
 
 import (
+	"fmt"
 	"github.com/monoculum/formam"
 	"net/http"
 	"net/url"
@@ -27,7 +28,7 @@ func BindBody(r *http.Request, i interface{}) error {
 		)
 		return dec.Decode(p, i)
 	default:
-		return http.ErrBodyNotAllowed
+		return fmt.Errorf("not allowed %s: %q", HeaderContentType, cType)
 	}
 }
 
