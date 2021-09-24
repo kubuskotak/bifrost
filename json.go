@@ -30,8 +30,9 @@ func RequestJSONBody(r *http.Request, extract interface{}) error {
 	return nil
 }
 
-// ResponsePayload set payload for response http
-func ResponsePayload(w http.ResponseWriter, r *http.Request, code int, payload interface{}) error {
+// ResponseJSONPayload set payload for response http
+func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, responses ...interface{}) error {
+	w.Header().Set(HeaderContentType, MIMEApplicationJSONCharsetUTF8)
 	null := make(map[string]interface{})
 	resp := &Response{
 		Version: Version{
@@ -39,12 +40,24 @@ func ResponsePayload(w http.ResponseWriter, r *http.Request, code int, payload i
 			Number: "0.1.0",
 		},
 		Meta:       Meta{Code: http.StatusText(code)},
-		Data:       payload,
 		Pagination: null,
 	}
 	if ver, ok := r.Context().Value(CtxVersion).(Version); ok {
 		resp.Version = ver
 	}
+	data := make(map[string]interface{}, 0)
+	for _, r := range responses {
+		switch r.(type) {
+		case Pagination:
+			resp.Pagination = r
+		case map[string]interface{}:
+			for k, v := range r.(map[string]interface{}) {
+				data[k] = v
+			}
+		}
+	}
+	resp.Data = data
+
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(true)
