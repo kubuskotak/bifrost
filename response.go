@@ -50,3 +50,15 @@ func SemanticVersion(r *http.Request, label string, version string) {
 		Number: version,
 	}))
 }
+
+type Pagination struct {
+	Limit      int         `json:"limit"`
+	NextCursor interface{} `json:"next_cursor"`
+}
+
+func (p Pagination) GetLimit() int {
+	if p.Limit < 1 {
+		return 10
+	}
+	return p.Limit
+}

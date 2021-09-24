@@ -84,8 +84,6 @@ func HttpTracer(next http.Handler) http.Handler {
 			r = r.WithContext(opentracing.ContextWithSpan(r.Context(), span))
 		}
 
-		JSONResponse(w)
-
 		// check content length
 		if r.ContentLength > 0 {
 			// Request
@@ -104,7 +102,7 @@ func HttpTracer(next http.Handler) http.Handler {
 			case strings.HasPrefix(cType, MIMEApplicationForm):
 				if err := r.ParseForm(); err != nil {
 					log.Error().Err(ErrBadRequest(w, r, err)).Msg("Request body contains badly-formed form-urlencoded")
-					_ = ResponsePayload(w, r, http.StatusBadRequest, nil)
+					_ = ResponseJSONPayload(w, r, http.StatusBadRequest, nil)
 					return
 				}
 
@@ -120,7 +118,7 @@ func HttpTracer(next http.Handler) http.Handler {
 
 				if err := body.Decode(&response); err != nil {
 					log.Error().Err(ErrBadRequest(w, r, err)).Msg("Request body contains badly-formed JSON")
-					_ = ResponsePayload(w, r, http.StatusBadRequest, nil)
+					_ = ResponseJSONPayload(w, r, http.StatusBadRequest, nil)
 					return
 				}
 				log.Info().

@@ -2,9 +2,16 @@
 ## [Unreleased]
 
 
+<a name="v0.3.0"></a>
+## [v0.3.0] - 2021-09-24
+### Feat
+- add pagination json payload and rename ResponsePayload
+
+
 <a name="v0.2.6"></a>
 ## [v0.2.6] - 2021-08-30
 ### Doc
+- update version release
 - tidy changelog
 
 ### Feat
@@ -75,7 +82,8 @@
 - grpc and rest serve
 
 
-[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.2.6...HEAD
+[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.3.0...HEAD
+[v0.3.0]: https://github.com/kubuskotak/bifrost/compare/v0.2.6...v0.3.0
 [v0.2.6]: https://github.com/kubuskotak/bifrost/compare/v0.2.5...v0.2.6
 [v0.2.5]: https://github.com/kubuskotak/bifrost/compare/v0.2.0...v0.2.5
 [v0.2.0]: https://github.com/kubuskotak/bifrost/compare/v0.1.9...v0.2.0

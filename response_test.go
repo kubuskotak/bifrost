@@ -34,8 +34,7 @@ func TestSemanticVersion(t *testing.T) {
 		"message": "transaksi telah sukses",
 	}
 
-	JSONResponse(w)
-	err = ResponsePayload(w, r, http.StatusOK, expected)
+	err = ResponseJSONPayload(w, r, http.StatusOK, expected)
 	assert.NoError(t, err)
 
 	bytes, err := ioutil.ReadAll(w.Body)
@@ -68,8 +67,7 @@ func TestNew(t *testing.T) {
 		"message": "transaksi telah sukses",
 	}
 
-	JSONResponse(w)
-	err = ResponsePayload(w, r, http.StatusOK, expected)
+	err = ResponseJSONPayload(w, r, http.StatusOK, expected)
 	assert.NoError(t, err)
 
 	bytes, err := ioutil.ReadAll(w.Body)

@@ -44,9 +44,8 @@ func Graphql(graphql embed.FS, dir string, resolver interface{}, opts ...graph.S
 	return func(w http.ResponseWriter, r *http.Request) {
 		bytes, erByte := GetRootSchema(graphql, dir)
 		if erByte != nil {
-			JSONResponse(w)
 			log.Error().Err(erByte)
-			_ = ResponsePayload(w, r, http.StatusNoContent, nil)
+			_ = ResponseJSONPayload(w, r, http.StatusNoContent, nil)
 			return
 		}
 		sch := graph.MustParseSchema(bytes, resolver, opts...)
@@ -60,18 +59,16 @@ func Graph(endpoint string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		index, erIndex := assets.Assets.ReadFile(`index.html`)
 		if erIndex != nil {
-			JSONResponse(w)
 			log.Error().Err(erIndex)
-			_ = ResponsePayload(w, r, http.StatusNoContent, nil)
+			_ = ResponseJSONPayload(w, r, http.StatusNoContent, nil)
 			return
 		}
 		tmpl := template.Must(template.New("svelte").Parse(string(index)))
 		if err := tmpl.Execute(w, map[string]string{
 			"endpoint": endpoint,
 		}); err != nil { // Execute template with data
-			JSONResponse(w)
 			log.Error().Err(err)
-			_ = ResponsePayload(w, r, http.StatusNoContent, nil)
+			_ = ResponseJSONPayload(w, r, http.StatusNoContent, nil)
 		}
 	}
 }
