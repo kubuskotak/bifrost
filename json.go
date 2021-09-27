@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 )
 
 // JSONResponse set header content-type to json format
@@ -53,6 +54,26 @@ func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, respo
 		case map[string]interface{}:
 			for k, v := range r.(map[string]interface{}) {
 				data[k] = v
+			}
+		default:
+			iType := reflect.TypeOf(r)
+			switch iType.Kind() {
+			case reflect.Ptr, reflect.Struct:
+				b, err := json.Marshal(r)
+				if err != nil {
+					w.Header().Set("X-Content-Type-Options", "nosniff")
+					w.WriteHeader(http.StatusInternalServerError)
+					return err
+				}
+				tempData := make(map[string]interface{}, 0)
+				if err := json.Unmarshal(b, &tempData); err != nil {
+					w.Header().Set("X-Content-Type-Options", "nosniff")
+					w.WriteHeader(http.StatusInternalServerError)
+					return err
+				}
+				for k, v := range tempData {
+					data[k] = v
+				}
 			}
 		}
 	}
