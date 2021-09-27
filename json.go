@@ -58,7 +58,7 @@ func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, respo
 		default:
 			iType := reflect.TypeOf(r)
 			switch iType.Kind() {
-			case reflect.Ptr, reflect.Struct:
+			case reflect.Ptr, reflect.Struct, reflect.Map, reflect.Slice:
 				b, err := json.Marshal(r)
 				if err != nil {
 					w.Header().Set("X-Content-Type-Options", "nosniff")
