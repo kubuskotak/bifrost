@@ -2,8 +2,23 @@
 ## [Unreleased]
 
 
+<a name="v0.3.1"></a>
+## [v0.3.1] - 2021-09-28
+### Feat
+- json payload
+- json payload
+
+### Fix
+- skip nil for slice or array
+- filter interface type of slice or array
+- filter interface type of slice or array
+
+
 <a name="v0.3.0"></a>
 ## [v0.3.0] - 2021-09-24
+### Doc
+- add tag release
+
 ### Feat
 - add pagination json payload and rename ResponsePayload
 
@@ -82,7 +97,8 @@
 - grpc and rest serve
 
 
-[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.3.1...HEAD
+[v0.3.1]: https://github.com/kubuskotak/bifrost/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/kubuskotak/bifrost/compare/v0.2.6...v0.3.0
 [v0.2.6]: https://github.com/kubuskotak/bifrost/compare/v0.2.5...v0.2.6
 [v0.2.5]: https://github.com/kubuskotak/bifrost/compare/v0.2.0...v0.2.5
