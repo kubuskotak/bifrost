@@ -62,6 +62,7 @@ func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, respo
 			case reflect.Slice, reflect.Array:
 				s := reflect.ValueOf(r)
 				l := strings.Split(s.Index(0).Type().String(), ".")
+
 				dataList := make([]map[string]interface{}, 0)
 				for n := 0; n < s.Len(); n++ {
 					b, err := json.Marshal(s.Index(n).Interface())
@@ -78,7 +79,7 @@ func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, respo
 					}
 					dataList = append(dataList, tempData)
 				}
-				data[l[len(l)-1]] = dataList
+				data[ToDelimited(l[len(l)-1], '_')] = dataList
 			default:
 				b, err := json.Marshal(r)
 				if err != nil {

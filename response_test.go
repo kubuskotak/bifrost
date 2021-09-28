@@ -54,11 +54,6 @@ func TestSemanticVersion(t *testing.T) {
 	assert.Equal(t, response, actual)
 }
 
-type p struct {
-	Name    string `json:"name"`
-	Address string `json:"address"`
-}
-
 func TestNew(t *testing.T) {
 	response := setupResponse()
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
