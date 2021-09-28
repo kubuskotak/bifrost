@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 // JSONResponse set header content-type to json format
@@ -58,7 +59,27 @@ func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, respo
 		default:
 			iType := reflect.TypeOf(r)
 			switch iType.Kind() {
-			case reflect.Ptr, reflect.Struct, reflect.Map, reflect.Slice:
+			case reflect.Slice, reflect.Array:
+				s := reflect.ValueOf(r)
+				l := strings.Split(s.Index(0).Type().String(), ".")
+				dataList := make([]map[string]interface{}, 0)
+				for n := 0; n < s.Len(); n++ {
+					b, err := json.Marshal(s.Index(n).Interface())
+					if err != nil {
+						w.Header().Set("X-Content-Type-Options", "nosniff")
+						w.WriteHeader(http.StatusInternalServerError)
+						return err
+					}
+					tempData := make(map[string]interface{}, 0)
+					if err := json.Unmarshal(b, &tempData); err != nil {
+						w.Header().Set("X-Content-Type-Options", "nosniff")
+						w.WriteHeader(http.StatusInternalServerError)
+						return err
+					}
+					dataList = append(dataList, tempData)
+				}
+				data[l[len(l)-1]] = dataList
+			default:
 				b, err := json.Marshal(r)
 				if err != nil {
 					w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -75,6 +96,7 @@ func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, respo
 					data[k] = v
 				}
 			}
+
 		}
 	}
 	resp.Data = data

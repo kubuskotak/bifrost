@@ -54,6 +54,11 @@ func TestSemanticVersion(t *testing.T) {
 	assert.Equal(t, response, actual)
 }
 
+type p struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
 func TestNew(t *testing.T) {
 	response := setupResponse()
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
@@ -86,6 +91,7 @@ func TestNew(t *testing.T) {
 	response.Data = expected
 	response.Meta = map[string]interface{}{"code": http.StatusText(http.StatusOK)}
 	assert.Equal(t, response, actual)
+	t.Log(actual)
 }
 
 func TestErrInternalServerError(t *testing.T) {
