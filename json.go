@@ -61,6 +61,9 @@ func ResponseJSONPayload(w http.ResponseWriter, r *http.Request, code int, respo
 			switch iType.Kind() {
 			case reflect.Slice, reflect.Array:
 				s := reflect.ValueOf(r)
+				if s.Len() < 1 {
+					continue
+				}
 				l := strings.Split(s.Index(0).Type().String(), ".")
 
 				dataList := make([]map[string]interface{}, 0)
