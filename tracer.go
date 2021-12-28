@@ -5,31 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/propagation"
+	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
+	"go.opentelemetry.io/otel/trace"
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
 	"strings"
 
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/opentracing/opentracing-go"
-	opExt "github.com/opentracing/opentracing-go/ext"
 	"github.com/rs/zerolog/log"
-	"github.com/uber/jaeger-client-go"
 )
 
-type SpanContext struct {
-	// A probabilistically unique identifier for a [multi-span] trace.
-	TraceID uint64
-
-	// A probabilistically unique identifier for a span.
-	SpanID uint64
-
-	// Whether the trace is sampled.
-	Sampled bool
-
-	// The span's associated baggage.
-	Baggage map[string]string // initialized on first use
-}
 type tracerContext struct {
 	Name string
 }
@@ -42,47 +32,39 @@ var TracerContext = tracerContext{Name: "context Respond"}
 
 func HttpTracer(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var span opentracing.Span
-		carrier := opentracing.HTTPHeadersCarrier(r.Header)
-		tracerCtx, err := opentracing.GlobalTracer().Extract(opentracing.HTTPHeaders, carrier)
-		if err != nil {
-			span = opentracing.StartSpan(r.URL.Path)
-		} else {
-			span = opentracing.StartSpan(r.URL.Path, opentracing.ChildOf(tracerCtx))
-		}
-		defer span.Finish()
+		operation := r.Method + " " + r.URL.Path
+		opts := append(
+			[]trace.SpanStartOption{
+				trace.WithAttributes(semconv.NetAttributesFromHTTPRequest("tcp", r)...),
+				trace.WithAttributes(semconv.EndUserAttributesFromHTTPRequest(r)...),
+				trace.WithAttributes(semconv.HTTPServerAttributesFromHTTPRequest(operation, "", r)...),
+			},
+		) // start with the configured options
+
+		carrier := http.Header{}
+		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(carrier))
+		tr := otel.Tracer("http.tracer")
+		ctxSpan, span := tr.Start(ctx, operation, opts...)
+		defer span.End()
+
 		defer func() {
 			if err := recover(); err != nil {
-				opExt.HTTPStatusCode.Set(span, uint16(http.StatusInternalServerError))
-				opExt.Error.Set(span, true)
-				span.SetTag("error.type", "panic")
-				span.LogKV(
-					"event", "error",
-					"error.kind", "panic",
-					"message", err,
-					"stack", string(debug.Stack()),
-				)
-				span.Finish()
+				span.SetStatus(codes.Error, "recover")
+				span.RecordError(err.(error))
+				span.SetAttributes(attribute.Key("event").String("error"))
+				span.SetAttributes(attribute.Key("error.kind").String("panic"))
+				span.SetAttributes(attribute.Key("stack").String(string(debug.Stack())))
 
+				span.End()
 				panic(err)
 			}
 		}()
 
-		span.SetTag("request.id", r.Header.Get("X-Request-Id"))
-
-		opExt.HTTPMethod.Set(span, r.Method)
-		opExt.HTTPUrl.Set(span, r.URL.Path)
-
-		resourceName := r.URL.Path
-		resourceName = r.Method + " " + resourceName
-		span.SetTag("resource.name", resourceName)
+		span.SetAttributes(attribute.String("request.id", r.Header.Get("X-Request-Id")))
 
 		// There's nothing we can do with any errors here.
-		if err := opentracing.GlobalTracer().Inject(span.Context(), opentracing.HTTPHeaders, carrier); err != nil {
-			opExt.Error.Set(span, true)
-		} else {
-			r = r.WithContext(opentracing.ContextWithSpan(r.Context(), span))
-		}
+		otel.GetTextMapPropagator().Inject(ctxSpan, propagation.HeaderCarrier(carrier))
+		r = r.WithContext(trace.ContextWithSpan(ctxSpan, span))
 
 		// check content length
 		if r.ContentLength > 0 {
@@ -109,7 +91,7 @@ func HttpTracer(next http.Handler) http.Handler {
 				log.Info().
 					Str(HeaderContentType, cType).
 					Str("body", string(buf)).Msg("resource payload")
-				span.SetTag("resource.payload", string(buf))
+				span.SetAttributes(attribute.String("resource.payload", string(buf)))
 			case strings.HasPrefix(cType, MIMEMultipartForm):
 			case strings.HasPrefix(cType, MIMEApplicationJSON):
 				// b := http.MaxBytesReader(w, b, 1048576)
@@ -124,27 +106,28 @@ func HttpTracer(next http.Handler) http.Handler {
 				log.Info().
 					Str(HeaderContentType, cType).
 					Interface("body", response).Msg("resource payload")
-				span.SetTag("resource.payload", response)
+				span.SetAttributes(attribute.String("resource.payload", string(buf)))
 			default:
 				log.Info().
 					Str(HeaderContentType, cType).
 					Str("body", string(buf)).Msg("resource payload")
-				span.SetTag("resource.payload", string(buf))
+				span.SetAttributes(attribute.String("resource.payload", string(buf)))
 			}
 			r.Body = ioutil.NopCloser(bytes.NewBuffer(buf))
 		}
 
 		log.Info().Msgf("tracing form middleware endpoint %s", r.URL.Path)
 
-		var traceID string
-		if traceID = r.Header.Get(HeaderUberTraceId); len(traceID) > 0 {
+		traceID := "trace-bifrost-id"
+		if traceID := r.Header.Get(HeaderUberTraceId); len(traceID) > 0 {
 			traceID = strings.Split(traceID, ":")[0]
-			w.Header().Set(HeaderXTraceId, traceID)
-		} else if sc, ok := span.Context().(jaeger.SpanContext); ok {
-			traceID = sc.TraceID().String()
-			w.Header().Set(HeaderXTraceId, traceID)
-
 		}
+		sc := trace.SpanContextFromContext(r.Context())
+		if sc.TraceID().IsValid() || sc.SpanID().IsValid() {
+			traceID = sc.TraceID().String()
+		}
+		w.Header().Set(HeaderXTraceId, traceID)
+
 		// adds traceID to a context and get from it latter
 		r = r.WithContext(context.WithValue(r.Context(), TracerContext, traceID))
 
@@ -154,16 +137,13 @@ func HttpTracer(next http.Handler) http.Handler {
 
 		// set the status code
 		status := ww.Status()
-		opExt.HTTPStatusCode.Set(span, uint16(status))
+		span.SetStatus(semconv.SpanStatusFromHTTPStatusCode(status))
 
 		if status >= 500 && status < 600 {
 			// mark 5xx server error
-			opExt.Error.Set(span, true)
-			span.SetTag("error.type", fmt.Sprintf("%d: %s", status, http.StatusText(status)))
-			span.LogKV(
-				"event", "error",
-				"message", fmt.Sprintf("%d: %s", status, http.StatusText(status)),
-			)
+			span.SetStatus(semconv.SpanStatusFromHTTPStatusCode(status))
+			span.SetAttributes(attribute.Key("event").String("error"))
+			span.SetAttributes(attribute.Key("message").String(fmt.Sprintf("%d: %s", status, http.StatusText(status))))
 		}
 	})
 }

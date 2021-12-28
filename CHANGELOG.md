@@ -2,8 +2,17 @@
 ## [Unreleased]
 
 
+<a name="v0.3.2"></a>
+## [v0.3.2] - 2021-12-29
+### Feat
+- opentracing to opentelemetry, interface value render
+
+
 <a name="v0.3.1"></a>
 ## [v0.3.1] - 2021-09-28
+### Doc
+- update version release
+
 ### Feat
 - json payload
 - json payload
@@ -97,7 +106,8 @@
 - grpc and rest serve
 
 
-[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/kubuskotak/bifrost/compare/v0.3.2...HEAD
+[v0.3.2]: https://github.com/kubuskotak/bifrost/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/kubuskotak/bifrost/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/kubuskotak/bifrost/compare/v0.2.6...v0.3.0
 [v0.2.6]: https://github.com/kubuskotak/bifrost/compare/v0.2.5...v0.2.6
