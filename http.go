@@ -53,11 +53,12 @@ type Server struct {
 
 func NewServerMux(opts ServeOpts) *Server {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	return &Server{httpServer: &http.Server{
-		Addr:         fmt.Sprintf(":%d", opts.Port),
-		ReadTimeout:  time.Duration(opts.TimeOut) * time.Second,
-		WriteTimeout: time.Duration(opts.TimeOut) * time.Second,
-	}, Port: opts.Port}
+	return &Server{
+		httpServer: &http.Server{
+			Addr:         fmt.Sprintf(":%d", opts.Port),
+			ReadTimeout:  time.Duration(opts.TimeOut) * time.Second,
+			WriteTimeout: time.Duration(opts.TimeOut) * time.Second,
+		}, Port: opts.Port, TLS: opts.TLS, CertFile: opts.CertFile, KeyFile: opts.KeyFile, TimeOut: opts.TimeOut}
 }
 
 func (s *Server) Run(handler http.Handler) error {
