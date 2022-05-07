@@ -97,7 +97,7 @@ func (s *Server) Quiet(ctx context.Context) {
 	if err := s.httpServer.Shutdown(ctx); err != nil {
 		log.Error().Err(err).Msg("Wait is over due to error")
 		if err = s.httpServer.Close(); err != nil {
-			log.Error().Err(err)
+			log.Error().Err(err).Msg("closing failed")
 		}
 	}
 	log.Info().Msgf("Stop server at %s", s.httpServer.Addr)
@@ -105,7 +105,7 @@ func (s *Server) Quiet(ctx context.Context) {
 
 func (s *Server) waitForSignals(ctx context.Context) {
 	// Do not make the application hang when it is shutdown.
-	ctxOut, cancel := context.WithTimeout(ctx, time.Second*5)
+	ctxOut, cancel := context.WithTimeout(ctx, time.Duration(s.TimeOut)*time.Second)
 	defer cancel()
 
 	interrupt := make(chan os.Signal, 1)
